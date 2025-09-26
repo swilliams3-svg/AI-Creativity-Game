@@ -8,7 +8,13 @@ from openai import OpenAI
 st.set_page_config(page_title="🎲 AI Creativity Challenge", layout="centered")
 
 st.title("🎲 AI Creativity Challenge")
-st.markdown("Test your creativity against AI! Get a prompt, share your idea, then see what AI comes up with.")
+st.markdown("""
+Welcome to the **AI Creativity Challenge** 🎨✨  
+- You'll be given a **creative prompt**.  
+- Follow the guidance on how much to write.  
+- Focus on **imagination, originality, and fun** — not perfection.  
+- Then click *See AI’s Idea* to compare with the AI.  
+""")
 
 # --------------------------
 # OpenAI client
@@ -45,6 +51,18 @@ concepts = [
 ]
 
 # --------------------------
+# Instructions per prompt type
+# --------------------------
+instructions = {
+    "holiday": "🎉 **Guidance**: Write at least 3 sentences. Explain what happens, who celebrates, and why it’s unique.",
+    "slogan": "🪧 **Guidance**: Keep it short and punchy — 1 catchy line is enough!",
+    "story": "📖 **Guidance**: Write 5–6 sentences. Be creative and surprising!",
+    "product": "🛠️ **Guidance**: Write at least 3 sentences. Explain what it is, how it works, and why people need it.",
+    "imagine": "🌍 **Guidance**: Write 3–4 sentences describing how life would change.",
+    "default": "💡 **Guidance**: Aim for 3–5 sentences with creative details."
+}
+
+# --------------------------
 # Generate Prompt
 # --------------------------
 if st.button("✨ Generate Creative Prompt"):
@@ -54,17 +72,32 @@ if st.button("✨ Generate Creative Prompt"):
         B=random.choice(concepts)
     )
     st.session_state.prompt = filled
-    st.session_state.ai_response = None  # reset AI response
-    st.session_state.user_response = ""  # reset user input
+    st.session_state.ai_response = None
+    st.session_state.user_response = ""
 
 if st.session_state.prompt:
     st.subheader("📝 Your Challenge")
     st.info(st.session_state.prompt)
 
+    # Show matching guidance
+    prompt_lower = st.session_state.prompt.lower()
+    if "holiday" in prompt_lower:
+        st.markdown(instructions["holiday"])
+    elif "slogan" in prompt_lower:
+        st.markdown(instructions["slogan"])
+    elif "story" in prompt_lower:
+        st.markdown(instructions["story"])
+    elif "product" in prompt_lower:
+        st.markdown(instructions["product"])
+    elif "imagine" in prompt_lower:
+        st.markdown(instructions["imagine"])
+    else:
+        st.markdown(instructions["default"])
+
     # --------------------------
     # Player Input
     # --------------------------
-    user_response = st.text_area("Your Idea:", height=150, value=st.session_state.user_response)
+    user_response = st.text_area("✍️ Your Idea:", height=150, value=st.session_state.user_response)
     st.session_state.user_response = user_response
 
     # --------------------------
@@ -73,10 +106,8 @@ if st.session_state.prompt:
     if st.button("🤖 See AI’s Idea"):
         with st.spinner("AI is thinking..."):
             response = client.chat.completions.create(
-                model="gpt-4o-mini",  # fast & affordable; change to "gpt-4o" if you want full GPT-4
-                messages=[
-                    {"role": "user", "content": st.session_state.prompt}
-                ]
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": st.session_state.prompt}]
             )
             ai_text = response.choices[0].message.content
             st.session_state.ai_response = ai_text
@@ -111,6 +142,5 @@ if st.session_state.prompt:
         st.markdown("### 🏆 Scoreboard")
         st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
 
-        # Reset option
         if st.button("🔄 Reset Scoreboard"):
             st.session_state.score = {"Human": 0, "AI": 0}

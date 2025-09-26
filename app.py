@@ -1,15 +1,16 @@
 import streamlit as st
 import random
+import time
 from openai import OpenAI
 
 # --------------------------
 # Config
 # --------------------------
-st.set_page_config(page_title="AI Creativity Challenge", layout="centered")
+st.set_page_config(page_title="🎲 AI Creativity Challenge", layout="centered")
 
-st.title("AI Creativity Challenge")
+st.title("🎲 AI Creativity Challenge")
 st.markdown("""
-Welcome to the **AI Creativity Challenge** 
+Welcome to the **AI Creativity Challenge** 🎨✨  
 - You'll be given a **creative prompt**.  
 - Follow the guidance on how much to write.  
 - Focus on **imagination, originality, and fun** — not perfection.  
@@ -32,6 +33,12 @@ if "ai_response" not in st.session_state:
     st.session_state.ai_response = None
 if "score" not in st.session_state:
     st.session_state.score = {"Human": 0, "AI": 0}
+if "round" not in st.session_state:
+    st.session_state.round = 0
+if "difficulty" not in st.session_state:
+    st.session_state.difficulty = "Medium"
+if "timer_end" not in st.session_state:
+    st.session_state.timer_end = None
 
 # --------------------------
 # Prompt Templates
@@ -51,21 +58,34 @@ concepts = [
 ]
 
 # --------------------------
-# Instructions per prompt type
+# Instructions per prompt type & difficulty
 # --------------------------
-instructions = {
-    "holiday": "**Guidance**: Write at least 3 sentences. Explain what happens, who celebrates, and why it’s unique.",
-    "slogan": "**Guidance**: Keep it short and punchy — 1 catchy line is enough!",
-    "story": "**Guidance**: Write 5–6 sentences. Be creative and surprising!",
-    "product": "**Guidance**: Write at least 3 sentences. Explain what it is, how it works, and why people need it.",
-    "imagine": "**Guidance**: Write 3–4 sentences describing how life would change.",
-    "default": "**Guidance**: Aim for 3–5 sentences with creative details."
+base_instructions = {
+    "holiday": "🎉 Describe what happens, who celebrates, and why it’s unique.",
+    "slogan": "🪧 Keep it short and punchy — 1 catchy line is enough!",
+    "story": "📖 Be creative and surprising!",
+    "product": "🛠️ Explain what it is, how it works, and why people need it.",
+    "imagine": "🌍 Describe how life would change.",
+    "default": "💡 Add creative details."
 }
+
+difficulty_guidance = {
+    "Easy": "Write 1–2 sentences.",
+    "Medium": "Write 3–4 sentences.",
+    "Hard": "Write 5–6 sentences."
+}
+
+# --------------------------
+# Difficulty Selection
+# --------------------------
+st.sidebar.header("⚙️ Game Settings")
+difficulty = st.sidebar.radio("Select difficulty:", ["Easy", "Medium", "Hard"], index=["Easy", "Medium", "Hard"].index(st.session_state.difficulty))
+st.session_state.difficulty = difficulty
 
 # --------------------------
 # Generate Prompt
 # --------------------------
-if st.button("Generate Creative Prompt"):
+if st.button("✨ Generate Creative Prompt"):
     template = random.choice(prompt_templates)
     filled = template.format(
         A=random.choice(concepts),
@@ -74,36 +94,52 @@ if st.button("Generate Creative Prompt"):
     st.session_state.prompt = filled
     st.session_state.ai_response = None
     st.session_state.user_response = ""
+    st.session_state.round += 1
+
+    # Start 2-minute timer
+    st.session_state.timer_end = time.time() + 120
 
 if st.session_state.prompt:
-    st.subheader("Your Challenge")
+    st.subheader(f"📝 Round {st.session_state.round}: Your Challenge")
     st.info(st.session_state.prompt)
 
-    # Show matching guidance
+    # Show tailored guidance
     prompt_lower = st.session_state.prompt.lower()
     if "holiday" in prompt_lower:
-        st.markdown(instructions["holiday"])
+        base = base_instructions["holiday"]
     elif "slogan" in prompt_lower:
-        st.markdown(instructions["slogan"])
+        base = base_instructions["slogan"]
     elif "story" in prompt_lower:
-        st.markdown(instructions["story"])
+        base = base_instructions["story"]
     elif "product" in prompt_lower:
-        st.markdown(instructions["product"])
+        base = base_instructions["product"]
     elif "imagine" in prompt_lower:
-        st.markdown(instructions["imagine"])
+        base = base_instructions["imagine"]
     else:
-        st.markdown(instructions["default"])
+        base = base_instructions["default"]
+
+    st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]} {base}")
+
+    # --------------------------
+    # Timer
+    # --------------------------
+    if st.session_state.timer_end:
+        remaining = int(st.session_state.timer_end - time.time())
+        if remaining > 0:
+            st.warning(f"⏱️ Time left: {remaining} seconds")
+        else:
+            st.error("⏰ Time’s up! Submit what you have.")
 
     # --------------------------
     # Player Input
     # --------------------------
-    user_response = st.text_area("Your Idea:", height=150, value=st.session_state.user_response)
+    user_response = st.text_area("✍️ Your Idea:", height=150, value=st.session_state.user_response)
     st.session_state.user_response = user_response
 
     # --------------------------
     # AI Response
     # --------------------------
-    if st.button("See AI’s Idea"):
+    if st.button("🤖 See AI’s Idea"):
         with st.spinner("AI is thinking..."):
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -120,22 +156,22 @@ if st.session_state.prompt:
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("### Your Idea")
+            st.markdown("### 👤 Your Idea")
             st.write(st.session_state.user_response if st.session_state.user_response else "*You didn’t write anything yet!*")
 
         with col2:
-            st.markdown("### AI’s Idea")
+            st.markdown("### 🤖 AI’s Idea")
             st.write(st.session_state.ai_response)
 
         st.markdown("---")
-        st.subheader("Vote: Who did it better?")
+        st.subheader("🗳️ Vote: Who did it better?")
 
         col3, col4 = st.columns(2)
         with col3:
-            if st.button("Human Wins"):
+            if st.button("👍 Human Wins"):
                 st.session_state.score["Human"] += 1
         with col4:
-            if st.button("AI Wins"):
+            if st.button("🤖 AI Wins"):
                 st.session_state.score["AI"] += 1
 
         # Show running score

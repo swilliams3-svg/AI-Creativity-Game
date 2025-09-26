@@ -1,22 +1,19 @@
 import streamlit as st
 import random
-import openai
-import os
-
-api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
-if not api_key:
-    st.error("Missing OPENAI_API_KEY. Add it to Streamlit secrets or your environment.")
-else:
-    openai.api_key = api_key
-
+from openai import OpenAI
 
 # --------------------------
-# Streamlit Config
+# Config
 # --------------------------
 st.set_page_config(page_title="🎲 AI Creativity Challenge", layout="centered")
 
 st.title("🎲 AI Creativity Challenge")
 st.markdown("Test your creativity against AI! Get a prompt, share your idea, then see what AI comes up with.")
+
+# --------------------------
+# OpenAI client
+# --------------------------
+client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
 # --------------------------
 # Session State Setup
@@ -75,11 +72,13 @@ if st.session_state.prompt:
     # --------------------------
     if st.button("🤖 See AI’s Idea"):
         with st.spinner("AI is thinking..."):
-            response = openai.ChatCompletion.create(
-                model="gpt-4",
-                messages=[{"role": "user", "content": st.session_state.prompt}]
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",  # fast & affordable; change to "gpt-4o" if you want full GPT-4
+                messages=[
+                    {"role": "user", "content": st.session_state.prompt}
+                ]
             )
-            ai_text = response["choices"][0]["message"]["content"]
+            ai_text = response.choices[0].message.content
             st.session_state.ai_response = ai_text
 
     # --------------------------
@@ -111,3 +110,7 @@ if st.session_state.prompt:
         # Show running score
         st.markdown("### 🏆 Scoreboard")
         st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
+
+        # Reset option
+        if st.button("🔄 Reset Scoreboard"):
+            st.session_state.score = {"Human": 0, "AI": 0}

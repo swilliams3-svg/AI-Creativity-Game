@@ -5,11 +5,11 @@ from openai import OpenAI
 # --------------------------
 # Config
 # --------------------------
-st.set_page_config(page_title="🎲 AI Creativity Challenge", layout="centered")
+st.set_page_config(page_title="AI Creativity Challenge", layout="centered")
 
-st.title("🎲 AI Creativity Challenge")
+st.title("AI Creativity Challenge")
 st.markdown("""
-Welcome to the **AI Creativity Challenge** 🎨✨  
+Welcome to the **AI Creativity Challenge** 
 - You'll be given a **creative prompt**.  
 - Follow the guidance on how much to write.  
 - Focus on **imagination, originality, and fun** — not perfection.  
@@ -54,18 +54,18 @@ concepts = [
 # Instructions per prompt type
 # --------------------------
 instructions = {
-    "holiday": "🎉 **Guidance**: Write at least 3 sentences. Explain what happens, who celebrates, and why it’s unique.",
-    "slogan": "🪧 **Guidance**: Keep it short and punchy — 1 catchy line is enough!",
-    "story": "📖 **Guidance**: Write 5–6 sentences. Be creative and surprising!",
-    "product": "🛠️ **Guidance**: Write at least 3 sentences. Explain what it is, how it works, and why people need it.",
-    "imagine": "🌍 **Guidance**: Write 3–4 sentences describing how life would change.",
-    "default": "💡 **Guidance**: Aim for 3–5 sentences with creative details."
+    "holiday": "**Guidance**: Write at least 3 sentences. Explain what happens, who celebrates, and why it’s unique.",
+    "slogan": "**Guidance**: Keep it short and punchy — 1 catchy line is enough!",
+    "story": "**Guidance**: Write 5–6 sentences. Be creative and surprising!",
+    "product": "**Guidance**: Write at least 3 sentences. Explain what it is, how it works, and why people need it.",
+    "imagine": "**Guidance**: Write 3–4 sentences describing how life would change.",
+    "default": "**Guidance**: Aim for 3–5 sentences with creative details."
 }
 
 # --------------------------
 # Generate Prompt
 # --------------------------
-if st.button("✨ Generate Creative Prompt"):
+if st.button("Generate Creative Prompt"):
     template = random.choice(prompt_templates)
     filled = template.format(
         A=random.choice(concepts),
@@ -76,7 +76,7 @@ if st.button("✨ Generate Creative Prompt"):
     st.session_state.user_response = ""
 
 if st.session_state.prompt:
-    st.subheader("📝 Your Challenge")
+    st.subheader("Your Challenge")
     st.info(st.session_state.prompt)
 
     # Show matching guidance
@@ -97,13 +97,13 @@ if st.session_state.prompt:
     # --------------------------
     # Player Input
     # --------------------------
-    user_response = st.text_area("✍️ Your Idea:", height=150, value=st.session_state.user_response)
+    user_response = st.text_area("Your Idea:", height=150, value=st.session_state.user_response)
     st.session_state.user_response = user_response
 
     # --------------------------
     # AI Response
     # --------------------------
-    if st.button("🤖 See AI’s Idea"):
+    if st.button("See AI’s Idea"):
         with st.spinner("AI is thinking..."):
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -120,22 +120,22 @@ if st.session_state.prompt:
         col1, col2 = st.columns(2)
 
         with col1:
-            st.markdown("### 👤 Your Idea")
+            st.markdown("### Your Idea")
             st.write(st.session_state.user_response if st.session_state.user_response else "*You didn’t write anything yet!*")
 
         with col2:
-            st.markdown("### 🤖 AI’s Idea")
+            st.markdown("### AI’s Idea")
             st.write(st.session_state.ai_response)
 
         st.markdown("---")
-        st.subheader("🗳️ Vote: Who did it better?")
+        st.subheader("Vote: Who did it better?")
 
         col3, col4 = st.columns(2)
         with col3:
-            if st.button("👍 Human Wins"):
+            if st.button("Human Wins"):
                 st.session_state.score["Human"] += 1
         with col4:
-            if st.button("🤖 AI Wins"):
+            if st.button("AI Wins"):
                 st.session_state.score["AI"] += 1
 
         # Show running score

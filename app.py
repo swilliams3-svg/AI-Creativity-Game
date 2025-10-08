@@ -9,13 +9,7 @@ from openai import OpenAI
 st.set_page_config(page_title="🎲 AI Creativity Challenge", layout="centered")
 
 st.title("🎲 AI Creativity Challenge")
-st.markdown("""
-Welcome to the **AI Creativity Challenge** 🎨✨  
-- You'll be given a **creative prompt**.  
-- Follow the guidance on how much to write.  
-- Focus on **imagination, originality, and fun** — not perfection.  
-- Then click *See AI’s Idea* to compare with the AI.  
-""")
+st.markdown("Choose a game mode, get a creative challenge, and test your imagination against AI!")
 
 # --------------------------
 # OpenAI client
@@ -25,23 +19,22 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # --------------------------
 # Session State Setup
 # --------------------------
-if "prompt" not in st.session_state:
-    st.session_state.prompt = None
-if "user_response" not in st.session_state:
-    st.session_state.user_response = ""
-if "ai_response" not in st.session_state:
-    st.session_state.ai_response = None
-if "score" not in st.session_state:
-    st.session_state.score = {"Human": 0, "AI": 0}
-if "round" not in st.session_state:
-    st.session_state.round = 0
-if "difficulty" not in st.session_state:
-    st.session_state.difficulty = "Medium"
-if "timer_end" not in st.session_state:
-    st.session_state.timer_end = None
+defaults = {
+    "prompt": None,
+    "user_response": "",
+    "ai_response": None,
+    "score": {"Human": 0, "AI": 0},
+    "round": 0,
+    "difficulty": "Medium",
+    "timer_end": None,
+    "yes_and_story": ""
+}
+for k, v in defaults.items():
+    if k not in st.session_state:
+        st.session_state[k] = v
 
 # --------------------------
-# Prompt Templates
+# Prompt Templates & Data
 # --------------------------
 prompt_templates = [
     "Invent a new holiday that combines {A} and {B}.",
@@ -57,17 +50,14 @@ concepts = [
     "dinosaurs", "TikTok", "AI", "pirates", "coffee", "self-driving cars"
 ]
 
-# --------------------------
-# Instructions per prompt type & difficulty
-# --------------------------
-base_instructions = {
-    "holiday": "🎉 Describe what happens, who celebrates, and why it’s unique.",
-    "slogan": "🪧 Keep it short and punchy — 1 catchy line is enough!",
-    "story": "📖 Be creative and surprising!",
-    "product": "🛠️ Explain what it is, how it works, and why people need it.",
-    "imagine": "🌍 Describe how life would change.",
-    "default": "💡 Add creative details."
-}
+constraints = [
+    "must include a banana",
+    "must rhyme",
+    "must use only 10 words",
+    "must be written as a haiku",
+    "must mention cats",
+    "must be set in space"
+]
 
 difficulty_guidance = {
     "Easy": "Write 1–2 sentences.",
@@ -76,107 +66,182 @@ difficulty_guidance = {
 }
 
 # --------------------------
-# Difficulty Selection
+# Sidebar: Mode + Difficulty
 # --------------------------
 st.sidebar.header("⚙️ Game Settings")
-difficulty = st.sidebar.radio("Select difficulty:", ["Easy", "Medium", "Hard"], index=["Easy", "Medium", "Hard"].index(st.session_state.difficulty))
+mode = st.sidebar.radio(
+    "Select game mode:",
+    ["Classic", "Yes, And…", "Constraint", "Mash-up"]
+)
+difficulty = st.sidebar.radio("Select difficulty:", ["Easy", "Medium", "Hard"],
+                              index=["Easy", "Medium", "Hard"].index(st.session_state.difficulty))
 st.session_state.difficulty = difficulty
 
 # --------------------------
-# Generate Prompt
+# Mode: Classic
 # --------------------------
-if st.button("✨ Generate Creative Prompt"):
-    template = random.choice(prompt_templates)
-    filled = template.format(
-        A=random.choice(concepts),
-        B=random.choice(concepts)
-    )
-    st.session_state.prompt = filled
-    st.session_state.ai_response = None
-    st.session_state.user_response = ""
-    st.session_state.round += 1
+if mode == "Classic":
+    if st.button("✨ Generate Creative Prompt"):
+        template = random.choice(prompt_templates)
+        filled = template.format(A=random.choice(concepts), B=random.choice(concepts))
+        st.session_state.prompt = filled
+        st.session_state.ai_response = None
+        st.session_state.user_response = ""
+        st.session_state.round += 1
+        st.session_state.timer_end = time.time() + 120
 
-    # Start 2-minute timer
-    st.session_state.timer_end = time.time() + 120
+    if st.session_state.prompt:
+        st.subheader(f"📝 Round {st.session_state.round}: Classic Challenge")
+        st.info(st.session_state.prompt)
+        st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]}")
 
-if st.session_state.prompt:
-    st.subheader(f"📝 Round {st.session_state.round}: Your Challenge")
-    st.info(st.session_state.prompt)
+        # Timer
+        if st.session_state.timer_end:
+            remaining = int(st.session_state.timer_end - time.time())
+            if remaining > 0:
+                st.warning(f"⏱️ Time left: {remaining} seconds")
+            else:
+                st.error("⏰ Time’s up!")
 
-    # Show tailored guidance
-    prompt_lower = st.session_state.prompt.lower()
-    if "holiday" in prompt_lower:
-        base = base_instructions["holiday"]
-    elif "slogan" in prompt_lower:
-        base = base_instructions["slogan"]
-    elif "story" in prompt_lower:
-        base = base_instructions["story"]
-    elif "product" in prompt_lower:
-        base = base_instructions["product"]
-    elif "imagine" in prompt_lower:
-        base = base_instructions["imagine"]
-    else:
-        base = base_instructions["default"]
+        # Human input
+        user_response = st.text_area("✍️ Your Idea:", height=150, value=st.session_state.user_response)
+        st.session_state.user_response = user_response
 
-    st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]} {base}")
+        # AI response
+        if st.button("🤖 See AI’s Idea"):
+            with st.spinner("AI is thinking..."):
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": st.session_state.prompt}]
+                )
+                st.session_state.ai_response = response.choices[0].message.content
 
-    # --------------------------
-    # Timer
-    # --------------------------
-    if st.session_state.timer_end:
-        remaining = int(st.session_state.timer_end - time.time())
-        if remaining > 0:
-            st.warning(f"⏱️ Time left: {remaining} seconds")
-        else:
-            st.error("⏰ Time’s up! Submit what you have.")
+        # Showdown + Voting
+        if st.session_state.ai_response:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 👤 Your Idea")
+                st.write(st.session_state.user_response or "*You didn’t write anything yet!*")
+            with col2:
+                st.markdown("### 🤖 AI’s Idea")
+                st.write(st.session_state.ai_response)
 
-    # --------------------------
-    # Player Input
-    # --------------------------
-    user_response = st.text_area("✍️ Your Idea:", height=150, value=st.session_state.user_response)
-    st.session_state.user_response = user_response
-
-    # --------------------------
-    # AI Response
-    # --------------------------
-    if st.button("🤖 See AI’s Idea"):
-        with st.spinner("AI is thinking..."):
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{"role": "user", "content": st.session_state.prompt}]
-            )
-            ai_text = response.choices[0].message.content
-            st.session_state.ai_response = ai_text
-
-    # --------------------------
-    # Results Display + Voting
-    # --------------------------
-    if st.session_state.ai_response:
-        st.subheader("⚡ The Showdown")
-        col1, col2 = st.columns(2)
-
-        with col1:
-            st.markdown("### 👤 Your Idea")
-            st.write(st.session_state.user_response if st.session_state.user_response else "*You didn’t write anything yet!*")
-
-        with col2:
-            st.markdown("### 🤖 AI’s Idea")
-            st.write(st.session_state.ai_response)
-
-        st.markdown("---")
-        st.subheader("🗳️ Vote: Who did it better?")
-
-        col3, col4 = st.columns(2)
-        with col3:
+            st.subheader("🗳️ Vote")
             if st.button("👍 Human Wins"):
                 st.session_state.score["Human"] += 1
-        with col4:
             if st.button("🤖 AI Wins"):
                 st.session_state.score["AI"] += 1
+            st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
 
-        # Show running score
-        st.markdown("### 🏆 Scoreboard")
-        st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
+# --------------------------
+# Mode: Yes, And…
+# --------------------------
+elif mode == "Yes, And…":
+    st.subheader("🎭 Yes, And… Mode (Collaborative Improv)")
+    st.markdown("You start with a sentence. The AI will continue. Then you add another, and so on!")
 
-        if st.button("🔄 Reset Scoreboard"):
-            st.session_state.score = {"Human": 0, "AI": 0}
+    if st.button("Start New Story"):
+        st.session_state.yes_and_story = ""
+        st.session_state.round += 1
+
+    human_input = st.text_input("✍️ Your line:")
+    if st.button("Add My Line"):
+        st.session_state.yes_and_story += f"👤 {human_input}\n"
+
+        with st.spinner("AI continues..."):
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": f"Continue this story: {st.session_state.yes_and_story}"}]
+            )
+            ai_line = response.choices[0].message.content
+            st.session_state.yes_and_story += f"🤖 {ai_line}\n"
+
+    st.text_area("Story so far:", st.session_state.yes_and_story, height=300)
+
+# --------------------------
+# Mode: Constraint
+# --------------------------
+elif mode == "Constraint":
+    if st.button("✨ Generate Constraint Challenge"):
+        concept = random.choice(concepts)
+        constraint = random.choice(constraints)
+        st.session_state.prompt = f"Create something involving **{concept}** — but it {constraint}!"
+        st.session_state.ai_response = None
+        st.session_state.user_response = ""
+        st.session_state.round += 1
+
+    if st.session_state.prompt:
+        st.subheader(f"📝 Round {st.session_state.round}: Constraint Mode")
+        st.info(st.session_state.prompt)
+        st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]}")
+
+        user_response = st.text_area("✍️ Your constrained idea:", height=150, value=st.session_state.user_response)
+        st.session_state.user_response = user_response
+
+        if st.button("🤖 See AI’s Constrained Idea"):
+            with st.spinner("AI is thinking..."):
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": st.session_state.prompt}]
+                )
+                st.session_state.ai_response = response.choices[0].message.content
+
+        if st.session_state.ai_response:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 👤 Your Idea")
+                st.write(st.session_state.user_response or "*You didn’t write anything yet!*")
+            with col2:
+                st.markdown("### 🤖 AI’s Idea")
+                st.write(st.session_state.ai_response)
+
+            st.subheader("🗳️ Vote")
+            if st.button("👍 Human Wins"):
+                st.session_state.score["Human"] += 1
+            if st.button("🤖 AI Wins"):
+                st.session_state.score["AI"] += 1
+            st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
+
+# --------------------------
+# Mode: Mash-up
+# --------------------------
+elif mode == "Mash-up":
+    if st.button("✨ Generate Mash-up Challenge"):
+        A, B = random.sample(concepts, 2)
+        st.session_state.prompt = f"Blend **{A}** and **{B}** into a new invention, story, or ad."
+        st.session_state.ai_response = None
+        st.session_state.user_response = ""
+        st.session_state.round += 1
+
+    if st.session_state.prompt:
+        st.subheader(f"📝 Round {st.session_state.round}: Mash-up Mode")
+        st.info(st.session_state.prompt)
+        st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]}")
+
+        user_response = st.text_area("✍️ Your mash-up idea:", height=150, value=st.session_state.user_response)
+        st.session_state.user_response = user_response
+
+        if st.button("🤖 See AI’s Mash-up Idea"):
+            with st.spinner("AI is thinking..."):
+                response = client.chat.completions.create(
+                    model="gpt-4o-mini",
+                    messages=[{"role": "user", "content": st.session_state.prompt}]
+                )
+                st.session_state.ai_response = response.choices[0].message.content
+
+        if st.session_state.ai_response:
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("### 👤 Your Idea")
+                st.write(st.session_state.user_response or "*You didn’t write anything yet!*")
+            with col2:
+                st.markdown("### 🤖 AI’s Idea")
+                st.write(st.session_state.ai_response)
+
+            st.subheader("🗳️ Vote")
+            if st.button("👍 Human Wins"):
+                st.session_state.score["Human"] += 1
+            if st.button("🤖 AI Wins"):
+                st.session_state.score["AI"] += 1
+            st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
+

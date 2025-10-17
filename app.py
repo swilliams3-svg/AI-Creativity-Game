@@ -6,7 +6,7 @@ from openai import OpenAI
 # --------------------------
 # App Config
 # --------------------------
-st.set_page_config(page_title="AI Creativity Challenge", layout="centered")
+st.set_page_config(page_title="🎲 AI Creativity Challenge", layout="centered")
 
 # --------------------------
 # Lightweight styling
@@ -35,21 +35,8 @@ st.markdown("""
 .btn-alt .stButton>button { background-image: var(--grad-2); }
 .btn-alt-2 .stButton>button { background-image: var(--grad-3); }
 .tip { color: var(--text-muted); font-size: .95rem; }
+.small { color: var(--text-muted); font-size: .9rem; }
 </style>
-""", unsafe_allow_html=True)
-
-# --------------------------
-# Title & Hero
-# --------------------------
-st.title("AI Creativity Challenge")
-st.markdown("""
-<div class="hero">
-  <h2 style="margin:.25rem 0;">Unleash your imagination ✨</h2>
-  <p style="margin:.25rem 0;">
-    Pick a mode, write your idea, and compare or collaborate with AI.
-    Try Classic for head-to-head, or Yes, And… for improv storytelling.
-  </p>
-</div>
 """, unsafe_allow_html=True)
 
 # --------------------------
@@ -61,8 +48,8 @@ client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 # Session State
 # --------------------------
 defaults = {
-    "page": "home",          # "home" or "play"
-    "mode": None,            # "Classic", "Yes, And…", "Constraint", "Mash-up"
+    "page": "intro",       # "intro" -> "home" -> "play"
+    "mode": None,          # "Classic", "Yes, And…", "Constraint", "Mash-up"
     "prompt": None,
     "user_response": "",
     "ai_response": None,
@@ -71,11 +58,42 @@ defaults = {
     "difficulty": "Medium",
     "timer_total": 120,
     "timer_end": None,
-    "yes_and_story": ""
+    "yes_and_story": "",
+    "skip_intro_next_time": False,
 }
 for k, v in defaults.items():
     if k not in st.session_state:
         st.session_state[k] = v
+
+# --------------------------
+# Title & Hero  (show ONLY on intro/home)
+# --------------------------
+if st.session_state.get("page", "intro") in ["intro", "home"]:
+    st.title("🎲 AI Creativity Challenge")
+    st.markdown("""
+    <div class="hero">
+      <h2 style="margin:.25rem 0;">Unleash your imagination ✨</h2>
+      <p style="margin:.25rem 0;">
+        Pick a mode, write your idea, and compare or collaborate with AI.
+        Start on the Introduction page to see how everything works.
+      </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+# --------------------------
+# Live timer auto-refresh (updates every second while timer is active)
+# --------------------------
+try:
+    from streamlit_autorefresh import st_autorefresh
+    if (
+        st.session_state.get("page") == "play"
+        and st.session_state.get("timer_end")
+        and time.time() < st.session_state["timer_end"]
+    ):
+        st_autorefresh(interval=1000, limit=None, key="live-timer")
+except Exception:
+    # If the package isn't installed, timer will still work but update on interaction.
+    pass
 
 # --------------------------
 # Prompt building blocks
@@ -192,7 +210,7 @@ difficulty_guidance = {
 # --------------------------
 # Sidebar (global settings)
 # --------------------------
-st.sidebar.header("Settings")
+st.sidebar.header("⚙️ Settings")
 st.sidebar.write("You can change these anytime.")
 st.session_state.difficulty = st.sidebar.radio(
     "Difficulty:", ["Easy", "Medium", "Hard"],
@@ -205,63 +223,111 @@ st.session_state.timer_total = st.sidebar.slider(
 # --------------------------
 # Helpers
 # --------------------------
-def back_to_home():
+def back_to_nav():
     st.divider()
-    if st.button("← Back to Home"):
-        st.session_state.page = "home"
-        st.session_state.mode = None
-        st.session_state.prompt = None
-        st.session_state.user_response = ""
-        st.session_state.ai_response = None
-        st.session_state.timer_end = None
+    cols = st.columns(3)
+    with cols[0]:
+        if st.button("🏠 Home"):
+            st.session_state.page = "home"
+            st.session_state.mode = None
+            st.session_state.prompt = None
+            st.session_state.user_response = ""
+            st.session_state.ai_response = None
+            st.session_state.timer_end = None
+    with cols[1]:
+        if st.button("📖 Introduction"):
+            st.session_state.page = "intro"
+            st.session_state.mode = None
+            st.session_state.prompt = None
+            st.session_state.user_response = ""
+            st.session_state.ai_response = None
+            st.session_state.timer_end = None
+    with cols[2]:
+        if st.button("🔄 Reset Scoreboard"):
+            st.session_state.score = {"Human": 0, "AI": 0}
 
 def fmt_dynamic(text: str, A: str, B: str) -> str:
-    """Fill {A} / {B} placeholders if present."""
     return text.replace("{A}", A).replace("{B}", B)
 
 def show_showdown_and_vote():
     st.markdown('<div class="card">', unsafe_allow_html=True)
     cols = st.columns(2)
     with cols[0]:
-        st.markdown("### Your Idea")
+        st.markdown("### 👤 Your Idea")
         st.write(st.session_state.user_response or "*You didn’t write anything yet!*")
     with cols[1]:
-        st.markdown("### AI’s Idea")
+        st.markdown("### 🤖 AI’s Idea")
         st.write(st.session_state.ai_response)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.subheader("🗳️ Vote")
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Human Wins"):
+        if st.button("👍 Human Wins"):
             st.session_state.score["Human"] += 1
             st.balloons()
             st.success("Point for Human!")
     with c2:
-        if st.button("AI Wins"):
+        if st.button("🤖 AI Wins"):
             st.session_state.score["AI"] += 1
             st.snow()
             st.info("Point for AI!")
     st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
 
 # --------------------------
-# Home (front page)
+# INTRODUCTION PAGE
+# --------------------------
+def render_intro():
+    st.markdown("""
+### 👋 Welcome
+This is a playful space to practice **originality**, **imagination**, and **storycraft** with a little help from AI.
+
+#### How it works
+1) Pick a **mode**  
+2) Get a **prompt** (and sometimes a constraint)  
+3) **Write your idea** (follow the guidance for length/detail)  
+4) In competitive modes, compare with the **AI’s idea** and **vote** 🗳️
+
+#### Modes at a glance
+- **🎮 Classic** — Head-to-head: Human vs AI with voting, timer & difficulty.  
+- **🎭 Yes, And…** — Improv storytelling: you add a line, AI continues (no scoring).  
+- **🔒 Constraint** — Same as Classic but with a twist (e.g., rhyme, haiku, emojis…).  
+- **🌀 Mash-up** — Blend two random concepts into a single idea (with voting).
+
+#### Difficulty & Timer
+- **Easy**: 1–2 sentences • **Medium**: 3–4 • **Hard**: 5–6  
+- Classic mode includes a countdown (change seconds in the sidebar).
+
+#### Scoring
+- **Classic, Constraint, Mash-up**: vote Human or AI each round → scoreboard updates.  
+- **Yes, And…**: collaborative; **no scoring**.
+
+> Tip: Have fun! Surprise yourself. It’s not about perfection — it’s about **play**.
+""")
+    st.checkbox("Skip this introduction next time", value=st.session_state.skip_intro_next_time,
+                key="skip_intro_next_time", help="We'll take you straight to the Home screen on reload.")
+    st.divider()
+    if st.button("🚀 Go to Game Home"):
+        st.session_state.page = "home"
+
+# --------------------------
+# HOME (mode chooser with descriptions)
 # --------------------------
 def render_home():
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("## Classic Mode")
+    st.markdown("## 🎮 Classic Mode")
     st.write("""
 Get a random creative prompt (holiday, slogan, product, story).  
 Write your idea, then see the AI’s. **Vote** on who did it better.  
 Includes **timer**, **difficulty**, **round counter**, and **scoreboard**.
 """)
-    if st.button("Start Classic"):
+    if st.button("Start Classic ▶️"):
         st.session_state.mode = "Classic"
         st.session_state.page = "play"
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.markdown("## Yes, And… Mode (Improv)")
+    st.markdown("## 🎭 Yes, And… Mode (Improv)")
     st.write("""
 You start a story with a line. The AI continues. You add another line… and so on!  
 This mode is **collaborative** — no scoring, just playful storytelling.
@@ -291,26 +357,26 @@ Blend **two random concepts** into a new invention, ad, or story.
 Both you and the AI respond, then you can **vote**.
 """)
     st.markdown('<div class="btn-alt-2">', unsafe_allow_html=True)
-    if st.button("Start Mash-up"):
+    if st.button("Start Mash-up ▶️"):
         st.session_state.mode = "Mash-up"
         st.session_state.page = "play"
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
-    st.markdown("### Scoreboard (this session)")
+    st.markdown("### 🏆 Scoreboard (this session)")
     st.write(f"**Human:** {st.session_state.score['Human']} | **AI:** {st.session_state.score['AI']}")
-    if st.button(" Reset Scoreboard"):
+    if st.button("🔄 Reset Scoreboard"):
         st.session_state.score = {"Human": 0, "AI": 0}
 
 # --------------------------
-# Mode: Classic (with timer + voting)
+# Mode: Classic (with live timer + voting)
 # --------------------------
 def render_classic():
-    back_to_home()
-    st.markdown("##  Classic Challenge")
+    back_to_nav()
+    st.markdown("## 📝 Classic Challenge")
 
-    if st.button(" Generate Creative Prompt"):
+    if st.button("✨ Generate Creative Prompt"):
         template = random.choice(prompt_templates)
         A, B = random.sample(concepts, 2)
         st.session_state.prompt = template.format(A=A, B=B)
@@ -324,22 +390,22 @@ def render_classic():
         st.info(st.session_state.prompt)
         st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]}")
 
-        # Timer
+        # Live timer (progress + text). Auto-refreshed above.
         if st.session_state.timer_end:
             remaining = max(0, int(st.session_state.timer_end - time.time()))
             total = st.session_state.timer_total
             elapsed = min(total, total - remaining)
             st.progress(elapsed / total)
-            st.warning(f"⏱️ Time left: {remaining} seconds" if remaining > 0 else " Time’s up!")
+            st.warning(f"⏱️ Time left: {remaining} seconds" if remaining > 0 else "⏰ Time’s up!")
 
         # Human input
         st.session_state.user_response = st.text_area(
-            " Your Idea:", height=150, value=st.session_state.user_response,
+            "✍️ Your Idea:", height=150, value=st.session_state.user_response,
             placeholder="Aim for creativity and clarity. Surprise us!"
         )
 
         # AI response
-        if st.button(" See AI’s Idea"):
+        if st.button("🤖 See AI’s Idea"):
             with st.spinner("AI is thinking..."):
                 resp = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -354,42 +420,41 @@ def render_classic():
 # Mode: Yes, And… (collaborative; no scoring)
 # --------------------------
 def render_yes_and():
-    back_to_home()
-    st.markdown("##  Yes, And… (Collaborative Improv)")
+    back_to_nav()
+    st.markdown("## 🎭 Yes, And… (Collaborative Improv)")
     st.markdown('<p class="tip">Start with a line; the AI continues; then you add another. Build a story together!</p>', unsafe_allow_html=True)
 
     if st.button("Start New Story"):
         st.session_state.yes_and_story = ""
         st.session_state.round += 1
 
-    human_input = st.text_input(" Your line:", placeholder="Once upon a time in a floating library...")
+    human_input = st.text_input("✍️ Your line:", placeholder="Once upon a time in a floating library...")
     if st.button("Add My Line"):
         if human_input.strip():
-            st.session_state.yes_and_story += f" {human_input}\n"
+            st.session_state.yes_and_story += f"👤 {human_input}\n"
             with st.spinner("AI continues..."):
                 resp = client.chat.completions.create(
                     model="gpt-4o-mini",
                     messages=[{"role": "user", "content": f"Continue this story in 1–2 sentences max: {st.session_state.yes_and_story}"}]
                 )
                 ai_line = resp.choices[0].message.content.strip()
-                st.session_state.yes_and_story += f" {ai_line}\n"
+                st.session_state.yes_and_story += f"🤖 {ai_line}\n"
 
     st.text_area("Story so far:", st.session_state.yes_and_story, height=320)
 
 # --------------------------
-# Mode: Constraint (with dynamic {A}/{B} + voting)
+# Mode: Constraint (dynamic {A}/{B} + optional double constraint + voting)
 # --------------------------
 def render_constraint():
-    back_to_home()
+    back_to_nav()
     st.markdown("## 🔒 Constraint Mode")
     st.markdown('<p class="tip">A playful restriction makes creativity pop: rhyme, haiku, emojis, bananas, and more.</p>', unsafe_allow_html=True)
 
-    double_constraint = st.checkbox(" Double challenge (use two constraints)")
+    double_constraint = st.checkbox("🎯 Double challenge (use two constraints)")
 
     if st.button("✨ Generate Constraint Challenge"):
         A, B = random.sample(concepts, 2)
         chosen = random.sample(constraints, 2) if double_constraint else [random.choice(constraints)]
-        # If any constraint includes {A}/{B}, fill them:
         filled_constraints = [fmt_dynamic(c, A, B) for c in chosen]
         constraint_text = " AND ".join(filled_constraints)
         st.session_state.prompt = f"Create something involving **{A}** and **{B}** — but it {constraint_text}."
@@ -403,11 +468,11 @@ def render_constraint():
         st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]}")
 
         st.session_state.user_response = st.text_area(
-            " Your constrained idea:", height=150, value=st.session_state.user_response,
+            "✍️ Your constrained idea:", height=150, value=st.session_state.user_response,
             placeholder="Try meeting the constraint in a playful way…"
         )
 
-        if st.button(" See AI’s Constrained Idea"):
+        if st.button("🤖 See AI’s Constrained Idea"):
             with st.spinner("AI is thinking..."):
                 resp = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -422,11 +487,11 @@ def render_constraint():
 # Mode: Mash-up (voting)
 # --------------------------
 def render_mashup():
-    back_to_home()
-    st.markdown("##  Mash-up Mode")
+    back_to_nav()
+    st.markdown("## 🌀 Mash-up Mode")
     st.markdown('<p class="tip">Two random concepts walk into a bar… now blend them into something brilliant.</p>', unsafe_allow_html=True)
 
-    if st.button(" Generate Mash-up Challenge"):
+    if st.button("✨ Generate Mash-up Challenge"):
         A, B = random.sample(concepts, 2)
         st.session_state.prompt = f"Blend **{A}** and **{B}** into a new invention, story, or ad."
         st.session_state.ai_response = None
@@ -439,11 +504,11 @@ def render_mashup():
         st.markdown(f"**Guidance:** {difficulty_guidance[st.session_state.difficulty]}")
 
         st.session_state.user_response = st.text_area(
-            " Your mash-up idea:", height=150, value=st.session_state.user_response,
+            "✍️ Your mash-up idea:", height=150, value=st.session_state.user_response,
             placeholder="What’s the hook? What makes this mash-up work?"
         )
 
-        if st.button(" See AI’s Mash-up Idea"):
+        if st.button("🤖 See AI’s Mash-up Idea"):
             with st.spinner("AI is thinking..."):
                 resp = client.chat.completions.create(
                     model="gpt-4o-mini",
@@ -457,7 +522,10 @@ def render_mashup():
 # --------------------------
 # Router
 # --------------------------
-if st.session_state.page == "home":
+if st.session_state.page == "intro" and not st.session_state.skip_intro_next_time:
+    render_intro()
+elif st.session_state.page == "home" or (st.session_state.page == "intro" and st.session_state.skip_intro_next_time):
+    st.session_state.page = "home"
     render_home()
 else:
     if not st.session_state.mode:
@@ -475,3 +543,4 @@ else:
         else:
             st.session_state.page = "home"
             render_home()
+
